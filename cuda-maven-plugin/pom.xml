@@ -3,7 +3,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.sybrium</groupId>
   <artifactId>cuda-maven-plugin</artifactId>
-  <version>0.0.1</version>
+  <version>0.0.2-SNAPSHOT</version>
   <packaging>maven-plugin</packaging>
   <name>cuda-maven-plugin Maven Mojo</name>
   <url>http://maven.apache.org</url>
