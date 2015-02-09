@@ -1,0 +1,21 @@
+
+<lifecycleMappingMetadata>
+  <pluginExecutions>
+    <pluginExecution>
+      <pluginExecutionFilter>
+        <groupId>com.sybrium</groupId>
+        <artifactId>cuda-maven-plugin</artifactId>
+        <versionRange>0.0.1</versionRange>
+        <goals>
+          <goal>compile-cuda</goal>
+        </goals>
+      </pluginExecutionFilter>
+      <action>
+        <execute>
+          <runOnIncremental>true</runOnIncremental>
+          <runOnConfiguration>true</runOnConfiguration>
+        </execute>
+      </action>
+    </pluginExecution>
+  </pluginExecutions>
+</lifecycleMappingMetadata>

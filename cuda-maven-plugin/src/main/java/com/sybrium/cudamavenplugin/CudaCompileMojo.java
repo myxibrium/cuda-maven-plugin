@@ -23,8 +23,10 @@ import java.util.Collection;
 import org.apache.commons.io.FileUtils;
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
+import org.apache.maven.plugins.annotations.Component;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
+import org.sonatype.plexus.build.incremental.BuildContext;
 
 /**
  * Compiles CUDA source files using nvcc, then puts the resulting *.ptx files on
@@ -59,12 +61,19 @@ public class CudaCompileMojo extends AbstractMojo {
     @Parameter(property = "preservePath", defaultValue = "true")
     private Boolean preservePath;
 
+    @Component
+    private BuildContext buildContext;
+
     public void execute() throws MojoExecutionException {
         Collection<File> inputFiles = FileUtils.listFiles(baseDirectory, extensions, true);
 
         getLog().info("Compiling " + inputFiles.size() + " cuda source file(s) to " + outputDirectory + ",");
 
         for (File inputFile : inputFiles) {
+            if (!buildContext.hasDelta(inputFile)) {
+                continue;
+            }
+            buildContext.removeMessages(inputFile);
             String relativePath = getRelativePath(inputFile);
             String outputFileName;
             File outputFile;
@@ -79,7 +88,9 @@ public class CudaCompileMojo extends AbstractMojo {
                 outputFile = new File(outputFileName);
                 outputFile.getParentFile().mkdirs();
             } catch (IOException e) {
-                throw new MojoExecutionException("Could not create output directories.", e);
+                buildContext.addMessage(inputFile, 0, 0, "Could not create output directories.",
+                        BuildContext.SEVERITY_ERROR, e);
+                continue;
             }
             try {
                 String command = "nvcc -ptx " + inputFile.getCanonicalPath() + " -o " + outputFileName;
@@ -95,8 +106,11 @@ public class CudaCompileMojo extends AbstractMojo {
                 }
                 getLog().info("Compiled " + outputFileName);
             } catch (IOException e) {
-                throw new MojoExecutionException("Could not compile", e);
+                buildContext.addMessage(inputFile, 0, 0, "Could not compile " + relativePath + ".",
+                        BuildContext.SEVERITY_ERROR, e);
+                continue;
             }
+            buildContext.refresh(outputFile);
         }
     }
 
