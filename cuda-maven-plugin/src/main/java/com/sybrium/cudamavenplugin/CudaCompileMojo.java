@@ -19,6 +19,9 @@ package com.sybrium.cudamavenplugin;
 import java.io.File;
 import java.io.IOException;
 import java.util.Collection;
+import java.util.Scanner;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.maven.plugin.AbstractMojo;
@@ -96,22 +99,32 @@ public class CudaCompileMojo extends AbstractMojo {
                 String command = "nvcc -ptx " + inputFile.getCanonicalPath() + " -o " + outputFileName;
                 Process process = Runtime.getRuntime().exec(command);
                 int exitValue = 0;
-                try {
-                    exitValue = process.waitFor();
-                } catch (InterruptedException e) {
-                    throw new MojoExecutionException("The nvcc command was interrupted.", e);
-                }
+                exitValue = process.waitFor();
                 if (exitValue != 0) {
-                    throw new MojoExecutionException("The nvcc command return non-zero, meaning it failed.");
+                    interpretErrors(inputFile, process);
                 }
                 getLog().info("Compiled " + outputFileName);
-            } catch (IOException e) {
-                buildContext.addMessage(inputFile, 0, 0, "Could not compile " + relativePath + ".",
-                        BuildContext.SEVERITY_ERROR, e);
+            } catch (Exception e) {
+                buildContext.addMessage(inputFile, 0, 0, "Could not compile.", BuildContext.SEVERITY_ERROR, e);
                 continue;
             }
             buildContext.refresh(outputFile);
         }
+    }
+
+    private void interpretErrors(File inputFile, Process process) {
+        Scanner scan = new Scanner(process.getErrorStream());
+        while (scan.hasNextLine()) {
+            String line = scan.nextLine();
+            Pattern errorPattern = Pattern.compile(".*?[.]cu[(]([0-9]+)[)]: error: (.*)");
+            Matcher matcher = errorPattern.matcher(line);
+            if (matcher.matches()) {
+                Integer lineNumber = Integer.parseInt(matcher.group(1));
+                String message = matcher.group(2);
+                buildContext.addMessage(inputFile, lineNumber, 1, message, BuildContext.SEVERITY_ERROR, null);
+            }
+        }
+        scan.close();
     }
 
     private String getRelativePath(File inputFile) throws MojoExecutionException {
